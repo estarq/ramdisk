@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=1.0.0
+Name=RAMDisk
+Comment=Manage ramdisks with ease
+Keywords=ram;disk;ramdisk
+Terminal=false
+Type=Application
+Icon=ramdisk
+Categories=Utility;GTK
+Exec=ramdisk

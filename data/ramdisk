@@ -1,0 +1,402 @@
+#!/usr/bin/env python3
+
+import string
+import json
+import os
+import gi
+import socket
+import errno
+import sys
+
+gi.require_version('Gtk', '3.0')
+from gi.repository import Gtk
+
+
+class NameEntry(Gtk.Entry, Gtk.Editable):
+    def __init__(self, *args, **kwargs):
+        Gtk.Entry.__init__(self, *args, **kwargs)
+
+    def do_insert_text(self, character, length, position):
+        if character in (*string.ascii_letters, *string.digits):
+            self.get_buffer().insert_text(position, character, length)
+            return position + length
+        return position
+
+
+class SizeEntry(Gtk.Entry, Gtk.Editable):
+    def __init__(self, *args, **kwargs):
+        Gtk.Entry.__init__(self, *args, **kwargs)
+
+    def do_insert_text(self, character, length, position):
+        if position == 0 and character == '0':
+            return position
+        if character in string.digits:
+            self.get_buffer().insert_text(position, character, length)
+            return position + length
+        return position
+
+
+class CreateRamdiskWindow(Gtk.Window):
+    def __init__(self, parent):
+        Gtk.Window.__init__(self)
+
+        self.props.default_width = 400
+        self.set_resizable(False)
+        self.set_border_width(15)
+        self.set_transient_for(parent)
+        self.set_position(Gtk.WindowPosition.CENTER_ON_PARENT)
+
+        self.parent = parent
+        self.parent.set_sensitive(False)
+        self.parent.props.accept_focus = False
+        self.parent.connect('configure-event', lambda widget, event: self.on_parent_configure())
+
+        self.connect('key-release-event', lambda widget, event: self.on_key_released(event))
+        self.connect('configure-event', lambda widget, event: self.on_configure())
+        self.connect('destroy', lambda widget: self.close())
+
+        header_bar = Gtk.HeaderBar()
+        header_bar.props.title = 'Create New Ramdisk'
+        self.set_titlebar(header_bar)
+
+        cancel_btn = Gtk.Button(label='Cancel')
+        cancel_btn.connect('clicked', lambda widget: self.close())
+        header_bar.pack_start(cancel_btn)
+
+        apply_btn = Gtk.Button(label='Apply')
+        apply_btn.connect('clicked', lambda widget: self.on_apply_clicked())
+        header_bar.pack_end(apply_btn)
+
+        grid = Gtk.Grid()
+        grid.set_row_spacing(12)
+        self.add(grid)
+
+        name_box = Gtk.Box()
+        name_label = Gtk.Label(label='Name', xalign=1, width_chars=10.5)
+        self.name_entry = NameEntry(max_length=10)
+        self.name_entry.set_icon_from_icon_name(1, 'dialog-question')
+        name_tooltip_text = 'Maximum of 10 characters.\n' \
+                            'English letters and digits only.\n' \
+                            'Each ramdisk has to have a unique name.'
+        self.name_entry.set_icon_tooltip_text(1, name_tooltip_text)
+        name_box.pack_start(name_label, False, True, 12)
+        name_box.pack_start(self.name_entry, True, True, 0)
+        grid.attach(name_box, 0, 0, 1, 1)
+
+        size_box = Gtk.Box()
+        size_label = Gtk.Label(label='Size', xalign=1, width_chars=10.5)
+        self.size_entry = SizeEntry()
+        self.size_entry.set_icon_from_icon_name(1, 'dialog-question')
+        size_tooltip_text = "RAM usage equals the size of stored files.\n" \
+                            "Ramdisk's size may exceed the physical memory,\n" \
+                            "utilizing the swap partition when necessary."
+        self.size_entry.set_icon_tooltip_text(1, size_tooltip_text)
+
+        unit_store = Gtk.ListStore(str)
+        units = ['MB', 'GB', 'TB']
+        for unit in units:
+            unit_store.append([unit])
+        unit_combo = Gtk.ComboBox.new_with_model(unit_store)
+        unit_combo.connect('changed', self.on_unit_changed)
+        unit_combo.set_active(1)
+        self.unit = 'GB'
+        renderer_text = Gtk.CellRendererText()
+        unit_combo.pack_start(renderer_text, True)
+        unit_combo.add_attribute(renderer_text, 'text', 0)
+
+        size_box.pack_start(size_label, True, True, 12)
+        size_box.pack_start(self.size_entry, True, True, 0)
+        size_box.pack_start(unit_combo, True, True, 2)
+        grid.attach_next_to(size_box, name_box, Gtk.PositionType.BOTTOM, 1, 1)
+
+    def on_key_released(self, event):
+        if event.keyval == 65293:  # return
+            self.on_apply_clicked()
+        elif event.keyval == 65307:  # esc
+            self.close()
+
+    def on_apply_clicked(self):
+        name = self.name_entry.get_text()
+        size = self.size_entry.get_text()
+        unit = self.unit
+
+        if len(name) == 0 or len(size) == 0:
+            dialog = Gtk.MessageDialog(
+                transient_for=self,
+                flags=0,
+                message_type=Gtk.MessageType.INFO,
+                buttons=Gtk.ButtonsType.OK,
+                text='Info'.ljust(37),
+            )
+            dialog.format_secondary_text('Enter name and size'.ljust(30))
+            dialog.run()
+            dialog.destroy()
+            return
+
+        if db.exists(name):
+            dialog = Gtk.MessageDialog(
+                transient_for=self,
+                flags=0,
+                message_type=Gtk.MessageType.WARNING,
+                buttons=Gtk.ButtonsType.OK,
+                text='Error'.ljust(36),
+            )
+            dialog.format_secondary_text('Ramdisk exists'.ljust(36))
+            dialog.run()
+            dialog.destroy()
+            return
+
+        if os.path.exists(f'/mnt/{name}'):
+            dialog = Gtk.MessageDialog(
+                transient_for=self,
+                flags=0,
+                message_type=Gtk.MessageType.WARNING,
+                buttons=Gtk.ButtonsType.OK,
+                text='Error'.ljust(36),
+            )
+            dialog.format_secondary_text('Choose another name'.ljust(26))
+            dialog.run()
+            dialog.destroy()
+            return
+
+        create(name, size, unit)
+
+        self.parent.render()
+        self.close()
+
+    def on_unit_changed(self, combo):
+        tree_iter = combo.get_active_iter()
+        if tree_iter is not None:
+            model = combo.get_model()
+            self.unit = model[tree_iter][0]
+
+    def on_configure(self):
+        if self.has_toplevel_focus():
+            child_width, child_height = self.get_size()
+            parent_width, parent_height = self.parent.get_size()
+            width_diff, height_diff = parent_width - child_width, parent_height - child_height
+            child_x, child_y = self.get_position()
+            new_parent_position = (child_x - int(width_diff / 2), child_y - int(height_diff / 2))
+            self.parent.move(*new_parent_position)
+
+    def on_parent_configure(self):
+        if self.parent.has_toplevel_focus():
+            child_width, child_height = self.get_size()
+            parent_width, parent_height = self.parent.get_size()
+            width_diff, height_diff = parent_width - child_width, parent_height - child_height
+            parent_x, parent_y = self.parent.get_position()
+            new_child_position = (parent_x + int(width_diff / 2), parent_y + int(height_diff / 2))
+            self.move(*new_child_position)
+
+    def close(self):
+        self.parent.set_sensitive(True)
+        self.parent.props.accept_focus = True
+        self.destroy()
+
+
+class MainWindow(Gtk.Window):
+    def __init__(self):
+        Gtk.Window.__init__(self)
+
+        self.set_resizable(False)
+        self.set_position(Gtk.WindowPosition.CENTER)
+        self.set_focus_visible(False)
+        self.props.default_height = 300
+        self.set_border_width(15)
+        self.set_icon_from_file('/usr/share/pixmaps/ramdisk.png')
+
+        header_bar = Gtk.HeaderBar()
+        header_bar.set_show_close_button(True)
+        header_bar.props.title = 'RAMDisk'
+        self.set_titlebar(header_bar)
+
+        padding_label = Gtk.Label(width_chars=0.5)
+        header_bar.pack_start(padding_label)
+
+        new_btn = Gtk.Button.new_from_icon_name('list-add', Gtk.IconSize.MENU)
+        new_btn.connect('clicked', lambda widget: CreateRamdiskWindow(self).show_all())
+        header_bar.pack_start(new_btn)
+
+        self.grid = Gtk.Grid()
+        self.grid.set_row_spacing(10)
+        self.add(self.grid)
+
+        self.next_available_row = 0
+        self.render()
+
+    def render(self):
+        while self.next_available_row > 0:
+            self.grid.remove_row(0)
+            self.next_available_row -= 1
+
+        if db.count == 0:
+            self.display_about()
+        else:
+            self.display_header_row()
+
+            for name, size, unit in db.list:
+                self.display_ramdisk(name, size, unit)
+
+        self.show_all()
+
+    def display_about(self):
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
+
+        img = Gtk.Image()
+        img.set_from_file('/usr/share/pixmaps/ramdisk.png')
+
+        info_1 = Gtk.Label(label='RAMDisk', width_chars=58)
+        info_2 = Gtk.Label(label='1.0.0\n', width_chars=58)
+        info_3 = Gtk.Label(width_chars=58)
+        info_3.set_markup('<a href="https://github.com/estarq/ramdisk">Github Repository</a>')
+        info_4 = Gtk.Label(label='Licensed under the MIT license', width_chars=58)
+        info_5 = Gtk.Label(label=u'Copyright \u00A9 2020 Paul Lloyd', width_chars=58)
+
+        box.pack_start(img, True, True, 0)
+        box.pack_start(info_1, True, True, 0)
+        box.pack_start(info_2, True, True, 0)
+        box.pack_start(info_3, True, True, 0)
+        box.pack_start(info_4, True, True, 0)
+        box.pack_start(info_5, True, True, 0)
+
+        self.grid.attach(box, 0, 0, 1, 1)
+        self.next_available_row = 1
+
+    def display_header_row(self):
+        box = Gtk.Box()
+
+        name_label = Gtk.Label(width_chars=19)
+        name_label.set_markup('<b>Name</b>')
+
+        location_label = Gtk.Label(width_chars=20)
+        location_label.set_markup('<b>Location</b>')
+
+        size_label = Gtk.Label(width_chars=15)
+        size_label.set_markup('<b>Size</b>')
+
+        padding_label = Gtk.Label(width_chars=4)
+
+        box.pack_start(name_label, True, True, 0)
+        box.pack_start(location_label, True, True, 0)
+        box.pack_start(size_label, True, True, 0)
+        box.pack_start(padding_label, True, True, 0)
+
+        self.grid.attach(box, 0, 0, 1, 1)
+        self.next_available_row = 1
+
+    def display_ramdisk(self, name, size, unit):
+        box = Gtk.Box()
+
+        name_label = Gtk.Label(label=name, width_chars=19)
+        location_label = Gtk.Label(label=f'/mnt/{name}', width_chars=20)
+        size_label = Gtk.Label(label=f'{size} {unit}', width_chars=15)
+
+        remove_ramdisk_btn = Gtk.Button.new_from_icon_name('list-remove', Gtk.IconSize.BUTTON)
+        remove_ramdisk_btn.connect('clicked', self.on_remove_clicked, name)
+
+        box.pack_start(name_label, True, True, 0)
+        box.pack_start(location_label, True, True, 0)
+        box.pack_start(size_label, True, True, 0)
+        box.pack_start(remove_ramdisk_btn, False, True, 0)
+
+        self.grid.attach(Gtk.Separator(), 0, self.next_available_row, 1, 1)
+        self.grid.attach(box, 0, self.next_available_row + 1, 1, 1)
+        self.next_available_row += 2
+
+    def on_remove_clicked(self, widget, name):
+        remove(name)
+        self.render()
+
+
+class DataStore:
+    def __init__(self, json_file_path):
+        self.path = json_file_path
+
+        with open(self.path) as f:
+            self.list = json.loads(json.load(f))
+
+        self.count = len(self.list)
+
+    def exists(self, name):
+        for ramdisk in self.list:
+            if name in ramdisk:
+                return True
+        return False
+
+    def select(self, name):
+        for ramdisk in self.list:
+            if name in ramdisk:
+                return ramdisk
+
+    def insert(self, name, size, unit):
+        self.list.append([name, size, unit])
+        self.count += 1
+
+        with open(self.path, 'w') as f:
+            json.dump(json.dumps(self.list), f)
+
+    def delete(self, name):
+        self.list.remove(self.select(name))
+        self.count -= 1
+
+        with open(self.path, 'w') as f:
+            json.dump(json.dumps(self.list), f)
+
+
+def create(name, size, unit):
+    os.mkdir(f'/mnt/{name}')
+
+    mib_in_mb = 0.95367431640625
+    multiplier = {'MB': 1, 'GB': 1000, 'TB': 1_000_000}
+    size_mebibytes = int(multiplier[unit] * int(size) * mib_in_mb) + 1
+
+    fstab_entry = f'{name} /mnt/{name} tmpfs defaults,size={size_mebibytes}M,x-gvfs-show 0 0'
+    with open('/etc/fstab', 'a') as f:
+        f.write(fstab_entry + '\n')
+    os.system(f'mount /mnt/{name}')
+
+    db.insert(name, size, unit)
+
+
+def remove(name):
+    fstab_entry_beginning = f'{name} /mnt/{name}'
+    with open('/etc/fstab', 'r+') as f:
+        fstab_entries = f.readlines()
+        for idx, fstab_entry in enumerate(fstab_entries):
+            if fstab_entry_beginning in fstab_entry:
+                fstab_entries.pop(idx)
+        f.seek(0)
+        f.truncate()
+        f.write(''.join(fstab_entries))
+
+    os.system(f'umount --lazy /mnt/{name}')
+    os.system(f'rm --recursive --force /mnt/{name}')
+
+    db.delete(name)
+
+
+if len(sys.argv) == 1:
+    os.system('pkexec ramdisk --with-privileges')
+    sys.exit(0)
+
+s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+try:
+    s.bind(('localhost', 60743))
+except socket.error as err:
+    if err.errno == errno.EADDRINUSE:
+        warn_dialog = Gtk.MessageDialog(
+            flags=0,
+            message_type=Gtk.MessageType.WARNING,
+            buttons=Gtk.ButtonsType.OK,
+            text='Warning'.ljust(84),
+        )
+        warn_dialog.format_secondary_text('Using multiple instances of RAMDisk may lead to errors.')
+        warn_dialog.run()
+        warn_dialog.destroy()
+
+db = DataStore('/usr/share/ramdisk/data.json')
+
+window = MainWindow()
+window.connect('destroy', Gtk.main_quit)
+window.show_all()
+Gtk.main()
