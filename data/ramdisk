@@ -258,8 +258,8 @@ class MainWindow(Gtk.Window):
         box.pack_start(license_label, True, True, 0)
         box.pack_start(copyright_label, True, True, 0)
 
-        self.grid.attach(box, 0, 0, 1, 1)
-        self.next_available_row = 1
+        self.grid.attach(box, 0, self.next_available_row, 1, 1)
+        self.next_available_row += 1
 
     def display_header_row(self):
         box = Gtk.Box()
@@ -280,8 +280,8 @@ class MainWindow(Gtk.Window):
         box.pack_start(size_label, True, True, 0)
         box.pack_start(padding_label, True, True, 0)
 
-        self.grid.attach(box, 0, 0, 1, 1)
-        self.next_available_row = 1
+        self.grid.attach(box, 0, self.next_available_row, 1, 1)
+        self.next_available_row += 1
 
     def display_ramdisk(self, name, size, unit):
         box = Gtk.Box()
