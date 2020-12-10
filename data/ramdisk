@@ -233,7 +233,6 @@ class MainWindow(Gtk.Window):
             self.display_about()
         else:
             self.display_header_row()
-
             for name, size, unit in db.list:
                 self.display_ramdisk(name, size, unit)
 
@@ -245,19 +244,19 @@ class MainWindow(Gtk.Window):
         img = Gtk.Image()
         img.set_from_file('/usr/share/pixmaps/ramdisk.png')
 
-        info_1 = Gtk.Label(label='RAMDisk', width_chars=58)
-        info_2 = Gtk.Label(label='1.0.0\n', width_chars=58)
-        info_3 = Gtk.Label(width_chars=58)
-        info_3.set_markup('<a href="https://github.com/estarq/ramdisk">Github Repository</a>')
-        info_4 = Gtk.Label(label='Licensed under the MIT license', width_chars=58)
-        info_5 = Gtk.Label(label=u'Copyright \u00A9 2020 Paul Lloyd', width_chars=58)
+        name_label = Gtk.Label(label='RAMDisk', width_chars=58)
+        version_label = Gtk.Label(label='1.0.0\n', width_chars=58)
+        repo_label = Gtk.Label(width_chars=58)
+        repo_label.set_markup('<a href="https://github.com/estarq/ramdisk">Github Repository</a>')
+        license_label = Gtk.Label(label='Licensed under the MIT license', width_chars=58)
+        copyright_label = Gtk.Label(label=u'Copyright \u00A9 2020 Paul Lloyd', width_chars=58)
 
         box.pack_start(img, True, True, 0)
-        box.pack_start(info_1, True, True, 0)
-        box.pack_start(info_2, True, True, 0)
-        box.pack_start(info_3, True, True, 0)
-        box.pack_start(info_4, True, True, 0)
-        box.pack_start(info_5, True, True, 0)
+        box.pack_start(name_label, True, True, 0)
+        box.pack_start(version_label, True, True, 0)
+        box.pack_start(repo_label, True, True, 0)
+        box.pack_start(license_label, True, True, 0)
+        box.pack_start(copyright_label, True, True, 0)
 
         self.grid.attach(box, 0, 0, 1, 1)
         self.next_available_row = 1
