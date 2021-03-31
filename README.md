@@ -18,7 +18,7 @@ sudo python3 install.py
 ```
 
 Tested on:<br>
-antiX, ArcoLinux, Elementary, EndeavourOS, Gecko, Kali, KDE neon, Kubuntu, Linuxfx, Lite, Lubuntu, LXLE, Mageia, Manjaro, Mint, MX Linux, OpenMandriva, openSUSE, Parrot, Peppermint, Pop!_OS, Q4OS, Solus, SparkyLinux, Tails, Trisquel, Ubuntu, Ubuntu Budgie, Ubuntu Kylin, Ubuntu MATE, Ubuntu Studio, Xubuntu, Zorin<br>
+antiX, ArcoLinux, Elementary, EndeavourOS, Gecko, Kali, KDE neon, Kubuntu, Linuxfx, Lite, Lubuntu, LXLE, Mageia, Manjaro, Mint, MX Linux, OpenMandriva, openSUSE, Parrot, Peppermint, Pop!_OS, Q4OS, Raspberry Pi OS (Raspbian), Solus, SparkyLinux, Tails, Trisquel, Ubuntu, Ubuntu Budgie, Ubuntu Kylin, Ubuntu MATE, Ubuntu Studio, Xubuntu, Zorin<br>
 
 antiX - use terminal to run RAMDisk<br><br>
 Doesn't work on:<br>
