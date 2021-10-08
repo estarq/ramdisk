@@ -46,5 +46,3 @@ Ramdisk's `size` limits it's total (RAM + swap) capacity.
 python3, python3-gi, python3-gi-cairo, gir1.2-gtk-3.0, adwaita-icon-theme
 
 (no need for manual installation)
-
-[![Hits](https://hits.seeyoufarm.com/api/count/incr/badge.svg?url=https%3A%2F%2Fgithub.com%2Festarq%2Framdisk&count_bg=%2379C83D&title_bg=%23555555&icon=&icon_color=%23E7E7E7&title=views&edge_flat=false)](https://hits.seeyoufarm.com)
