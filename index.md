@@ -44,5 +44,3 @@ antiX users must use Terminal to run RAMDisk.
 ### What’s next for RAMDisk
 
 By the end of Q3 2021, I’d like to change the way RAMDisk is distributed (official repos would be nice) and add support for remaining popular distributions like CentOS, Debian, Devuan, Fedora, KaOS, PCLinuxOS, or PureOS.
-
-[![Hits](https://hits.seeyoufarm.com/api/count/incr/badge.svg?url=https%3A%2F%2Festarq.github.io%2Framdisk%2F&count_bg=%2379C83D&title_bg=%23555555&icon=&icon_color=%23E7E7E7&title=views&edge_flat=false)](https://hits.seeyoufarm.com)
