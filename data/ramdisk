@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 
-import string
+import errno
+import gi
 import json
 import os
-import gi
 import socket
-import errno
+import string
 import sys
 
 gi.require_version('Gtk', '3.0')
@@ -13,8 +13,8 @@ from gi.repository import Gtk
 
 
 class NameEntry(Gtk.Entry, Gtk.Editable):
-    def __init__(self, *args, **kwargs):
-        Gtk.Entry.__init__(self, *args, **kwargs)
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
 
     def do_insert_text(self, character, length, position):
         if character in (*string.ascii_letters, *string.digits):
@@ -24,11 +24,11 @@ class NameEntry(Gtk.Entry, Gtk.Editable):
 
 
 class SizeEntry(Gtk.Entry, Gtk.Editable):
-    def __init__(self, *args, **kwargs):
-        Gtk.Entry.__init__(self, *args, **kwargs)
+    def __init__(self):
+        super().__init__()
 
     def do_insert_text(self, character, length, position):
-        if position == 0 and character == '0':
+        if not position and character == '0':
             return position
         if character in string.digits:
             self.get_buffer().insert_text(position, character, length)
@@ -38,7 +38,7 @@ class SizeEntry(Gtk.Entry, Gtk.Editable):
 
 class CreateRamdiskWindow(Gtk.Window):
     def __init__(self, parent):
-        Gtk.Window.__init__(self)
+        super().__init__()
 
         self.props.default_width = 400
         self.set_resizable(False)
@@ -120,7 +120,7 @@ class CreateRamdiskWindow(Gtk.Window):
         size = self.size_entry.get_text()
         unit = self.unit
 
-        if len(name) == 0 or len(size) == 0:
+        if not name or not size:
             dialog = Gtk.MessageDialog(
                 transient_for=self,
                 flags=0,
@@ -174,7 +174,8 @@ class CreateRamdiskWindow(Gtk.Window):
         if self.has_toplevel_focus():
             child_width, child_height = self.get_size()
             parent_width, parent_height = self.parent.get_size()
-            width_diff, height_diff = parent_width - child_width, parent_height - child_height
+            width_diff = parent_width - child_width
+            height_diff = parent_height - child_height
             child_x, child_y = self.get_position()
             new_parent_position = (child_x - int(width_diff / 2), child_y - int(height_diff / 2))
             self.parent.move(*new_parent_position)
@@ -183,7 +184,8 @@ class CreateRamdiskWindow(Gtk.Window):
         if self.parent.has_toplevel_focus():
             child_width, child_height = self.get_size()
             parent_width, parent_height = self.parent.get_size()
-            width_diff, height_diff = parent_width - child_width, parent_height - child_height
+            width_diff = parent_width - child_width
+            height_diff = parent_height - child_height
             parent_x, parent_y = self.parent.get_position()
             new_child_position = (parent_x + int(width_diff / 2), parent_y + int(height_diff / 2))
             self.move(*new_child_position)
@@ -196,7 +198,7 @@ class CreateRamdiskWindow(Gtk.Window):
 
 class MainWindow(Gtk.Window):
     def __init__(self):
-        Gtk.Window.__init__(self)
+        super().__init__()
 
         self.set_resizable(False)
         self.set_position(Gtk.WindowPosition.CENTER)
@@ -229,7 +231,7 @@ class MainWindow(Gtk.Window):
             self.grid.remove_row(0)
             self.next_available_row -= 1
 
-        if db.count == 0:
+        if not db.count:
             self.display_about()
         else:
             self.display_header_row()
@@ -245,7 +247,7 @@ class MainWindow(Gtk.Window):
         img.set_from_file('/usr/share/pixmaps/ramdisk.png')
 
         name_label = Gtk.Label(label='RAMDisk', width_chars=58)
-        version_label = Gtk.Label(label='1.0.0\n', width_chars=58)
+        version_label = Gtk.Label(label='1.0.1\n', width_chars=58)
         repo_label = Gtk.Label(width_chars=58)
         repo_label.set_markup('<a href="https://github.com/estarq/ramdisk">Github Repository</a>')
         license_label = Gtk.Label(label='Licensed under the MIT license', width_chars=58)
